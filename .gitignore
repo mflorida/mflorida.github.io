@@ -1,0 +1,21 @@
+# Pay no mind...
+
+# IDEs
+.idea
+.vscode*
+
+# Dependency directories
+node_modules/
+
+# dotenv environment variables file
+.env
+.env.test
+
+# OS files
+.DS_Store
+
+# Other
+.private
+
+# Files and folders with 5 dashes (huh?)
+*-----*

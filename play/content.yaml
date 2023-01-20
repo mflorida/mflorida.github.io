@@ -1,0 +1,65 @@
+# Body content for my shameless self-promotional web page.
+# In YAML format, because hipster.
+
+---
+
+content:
+  body:
+
+    - tag: div
+      ___HTML___: <hr>
+
+    - tag: p
+      ~id: xyz  # this will not be parsed for rendering since it starts with `~`
+      props:
+        $class: m-t-20
+      children: >
+        This is the first paragraph. It uses `tag` for the tagName and `content` for its contents.
+
+    - tag: p
+      children: > 
+        This is the second paragraph. It uses `type` for the tagName and `children` for its contents.
+        These are the same property names used in React, so shold be a familiar pattern.
+
+    - tag: div
+      props:
+        _id: paragraph-3
+        _className: yet-another-paragraph
+        _title: Whatever
+          # 'style' gets special handling
+        style: "color:cornflowerblue;"
+      children:
+        - ___HTML___: > 
+            This is the third paragraph. It uses an array with the pattern `[tag, props, children]`. 
+            Below are some things to note:
+        - ___HTML___: "<br><br>"
+        - tag: ul
+          props:
+            $class: m-t-20
+            $title: Yo. I'm the UL!!!
+            $data-what: ???
+          children:
+            -
+              - li
+              - $data-foo: array-type
+                $data-bar: 3-items
+                attr:
+                  title: 3-element array
+                  data-baz: 3-elements
+              - >
+                An element defined this way *must* use an array with 3 elements.
+            - tag: li
+              props:
+                _title: Children but no props
+              children: >
+                If there are `children` but no `props` options, pass an empty object or any 
+                falsey value as the second argument.
+            - tag: li
+              ___HTML___: >
+                <!-- the '___HTML___' will be stripped from the output -->
+                <i>Probably some other stuff too<i>
+            - tag: li
+              children: >
+                Though not recommend, if your content source is known to be 'clean', you can pass 
+                raw HTML as a value of an '___HTML___' prop, or as a string that starts
+                with '___HTML___' for the third `children` argument.

@@ -6,6 +6,30 @@
 content:
   body:
 
+    -
+      - header.page-header
+      - attr:
+          data-id: '653842987'
+        prop:
+          title: Page Header
+      -
+        - >
+          This is the page header, using the <header> element.
+          Defined using an array of 3 elements:
+        - ___HTML__ <br>
+        - >
+          ['tag', { attr, prop, etc}, [...children]]
+
+    - <div>:
+        _id: foo
+        $class: bar
+        $title: "Foo Bar"
+        $style: >
+          fontSize:24px;
+        children:
+          - <p>:
+              $class:
+
     - tag: div
       ___HTML___: <hr>
 

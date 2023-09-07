@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Domage examples</title>
+
+  <link rel="stylesheet" href="examples.css">
+
+  <!-- Library script -->
+  <script src="domage.js"></script>
+
+  <!-- Example content -->
+  <script defer src="content.js"></script>
+
+  <!-- Code that uses domage to generate elements -->
+  <script defer src="examples.js"></script>
+
+</head>
+<body class="bg-f0">
+<div class="inner relative min-h-view m-b-10 p-20 bg-ff shadow-xl">
+  <header class="m-t-10 p-x-20">
+    <h1>Bob A. Robertson</h1>
+    <hr>
+    <div class="i m-t-10 flex items-baseline content-between">
+      <h2>A dude</h2>
+      <small class="text-xs lt-gray">who did things</small>
+    </div>
+  </header>
+  <main class="m-t-20 m-b-40 p-x-20">
+
+    <section id="summary" class="m-b-20">
+      <header>Summary</header>
+      <p>Summarized.</p>
+    </section>
+
+    <section id="things" class="m-b-20">
+      <header>Things</header>
+      <p>Things.</p>
+    </section>
+
+    <section id="history" class="m-b-20">
+      <header>History</header>
+      <dl>
+
+        <dt class="m-t-20 bold">Work X <i>[dates]</i></dt>
+        <dd class="m-b-20">I did some things.</dd>
+
+        <dt class="m-t-20 bold">Work Y <i>[dates]</i></dt>
+        <dd class="m-b-20">I did some things as well.</dd>
+
+        <dt class="m-t-20 bold">Etc.</dt>
+        <dd class="m-b-20">
+          &hellip;
+        </dd>
+
+      </dl>
+    </section>
+
+    <div class="m-b-10">
+      <small class="text-xs md-gray">
+        Below you will find content created using Domage.
+      </small>
+    </div>
+
+
+    <div id="output">
+      <!--  Put the things in here  -->
+    </div>
+
+
+  </main>
+  <br>
+  <footer class="w-full absolute bottom p-x-20 p-y-10">
+    <small class="i text-xs lt-gray">
+      Footer
+    </small>
+  </footer>
+</div>
+</body>
+</html>

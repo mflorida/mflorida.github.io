@@ -5,9 +5,6 @@
 
 (function(window){
 
-  // Object to hold methods to expose via `window.d$`
-  const d$ = {};
-
   // DO NOT DEFINE
   let undef;
 
@@ -19,7 +16,7 @@
   const htmlTest = new RegExp(`\s*${___HTML___}`);
 
   // 'export' some constants
-  d$.constants = {
+  const constants = {
     ___HTML___,
     propPrefix,
     attrPrefix,
@@ -27,8 +24,21 @@
     htmlTest
   };
 
+  const propMethodList = [
+    'attr',
+    'prop',
+    'style',
+    'css',
+    'className',
+    'addClass',
+    'classes',
+    'removeClass',
+    'on',
+    ___HTML___
+  ];
+
   // DO NOT allow these as 'props'
-  const bannedProps = ['get', 'append'];
+  const bannedProps = ['get', 'append', 'render'];
 
   /**
    * Create a DOM element...
@@ -48,19 +58,13 @@
      * @param {Children} [children] - Optional child elements, strings, or Arrays
      */
     constructor(tag, props, children){
-
-      this.tag = tag;
-      this.props = props;
-      this.children = children;
-
-      try {
-        this.#setupFromObject(props, children) ||
-        this.#setupFromArray(props, children) ||
-        this.#setupFromArgs(props, children);
+      // Calling `new Elem()` with no arguments
+      // just sets up an instance to init later.
+      if (tag == null && !props && !children) {
+        return this;
       }
-      catch (e) {
-        console.error('Could not setup.', this, e);
-      }
+
+      this.init(tag, props, children);
 
       // delete 'children' from 'props'
       if (this.props && this.props.children) {
@@ -73,7 +77,7 @@
         this.#elementFromInstance(this.tag);
       }
       catch (e) {
-        this.#createFragment();
+        this.createFragment();
         console.warn(`Could not create element. A fragment will be used instead`, this.tag, e);
       }
 
@@ -103,16 +107,47 @@
 
       this.append(this.children);
 
+      return this;
     }
 
-    #setupFromObject(props, children){
-      if (isPlainObject(this.tag) && !props && !children) {
+    init(tag, props, children) {
+      this.tag = tag;
+      this.props = props;
+      this.children = children;
+
+      try {
+        this.#setupFromObject() ||
+        this.#setupFromArray() ||
+        this.#setupFromArgs() ||
+        this.#setupEmpty();
+      }
+      catch (e) {
+        console.error('Could not initialize.', this, e);
+      }
+    }
+
+    #hasEmptyProps() {
+      return this.props == null || !Object.keys(this.props).length;
+    }
+
+    #setupFromObject() {
+      if (isPlainObject(this.tag) && this.#hasEmptyProps() && !this.children) {
         const {
           type,
           tag = type,
+          // Use `attr` to explicitly call .setAttribute()
+          attr = {},
+          // Use `prop` to expicitly set a propety value
+          prop = {},
+          // Use `style` to set style
+          style = {},
+          // Use `data` to add [data-*] attributes
+          data = {},
+          // Use `on` to add event listeners
+          on = [],
           // WHAT IS THIS MADNESS???
           // This allows use of different property names,
-          // in order of preference:
+          // in order of preference (bottom to top):
           // 'props' | 'opts' | 'cfg'
           // (...maybe just use 'props')
           cfg = {},
@@ -123,27 +158,54 @@
           // (...maybe just use 'children')
           content = null,
           contents = content,
-          children = contents
+          children = contents,
+          // Catch leftover properties
+          ...other
         } = this.tag;
 
         this.tag = tag;
-        this.props = getObject(props);
-        this.children = children;
+
+        this.props = props ? getObject(props) : {};
+        this.props.attr = {...this.props.attr, ...attr};
+        this.props.prop = {...this.props.prop, ...prop};
+        this.props.style = {...this.props.style, ...style};
+        this.props.data = {...this.props.data, ...data};
+        this.props.on = [].concat(this.props.on || [], on);
+
+        // Special handling of $attr and _prop properties
+        for (const [name, value] of Object.entries(other)) {
+          if (name.startsWith('$')) {
+            this.props.attr[name.slice(1)] = value;
+            continue;
+          }
+          if (name.startsWith('_')) {
+            this.props.prop[name.slice(1)] = value;
+          }
+        }
+
+        this.children = children || this.props.children || [];
+
         return true;
       }
     }
 
-    #setupFromArray(props, children){
-      if (isArray(this.tag) && !props && !children) {
+    #setupFromArray() {
+      if (isArray(this.tag) && !this.props && !this.children) {
         [this.tag, this.props = {}, this.children = null] = this.tag;
         return true;
       }
     }
 
-    #setupFromArgs(props, children){
-      this.props = props || {};
-      this.children = children || this.props.children || null;
+    #setupFromArgs() {
+      this.props = this.props || {};
+      this.children = this.children || this.props.children || null;
       return true;
+    }
+
+    #setupEmpty() {
+      this.tag = '';
+      this.props = {};
+      this.children = null;
     }
 
     static isInstance(it){
@@ -174,8 +236,13 @@
       }
     }
 
-    #createFragment(){
-      this.element = document.createDocumentFragment();
+    static createFragment() {
+      return document.createDocumentFragment();
+    }
+
+    createFragment(){
+      this.fragment = Elem.createFragment();
+      this.element = this.fragment;
       this.isFragment = true;
       return true;
     }
@@ -187,11 +254,11 @@
     }
 
     // prepend `~` to a property name that should be thrown away
-    static #ignoreProp(prop){
+    #ignoreProp(prop){
       return prop.startsWith('~');
     }
 
-    static #skipBannedProps(prop){
+    #skipBannedProps(prop){
       if (bannedProps.includes(prop)) {
         console.warn(`Cannot use ${prop} as a config property.`);
         return true;
@@ -221,8 +288,8 @@
     }
 
     #callMethodProp(method, value){
-      if (isFunction(this.propMethods[method])) {
-        this.propMethods[method](value);
+      if (this.#hasMethod(this, method)) {
+        this[method](value);
       }
       else {
         console.warn(`Method ${method} is not a function.`);
@@ -265,7 +332,10 @@
       for (const [p, v] of Object.entries(props)) {
 
         // DO NOT USE innerHTML!!!
-        if (p === 'innerHTML') continue;
+        if (p === 'innerHTML') {
+          console.warn('Do not use .innerHTML!');
+          continue;
+        }
 
         try {
           elem[p] = v;
@@ -274,6 +344,7 @@
           console.error('Could not set property:', p, v, e);
         }
       }
+
       return elem;
     }
     // ...
@@ -283,8 +354,8 @@
     }
 
     // Element styles
-    static style(elem, styles = {}){
-      for (const [p, v] of Object.entries(styles)) {
+    static style(elem, obj = {}){
+      for (const [p, v] of Object.entries(obj)) {
         try {
           elem.style[p] = v;
         }
@@ -294,14 +365,29 @@
       }
       return elem;
     }
-
     // ...
     style(styles = {}){
       Elem.style(this.element, styles);
       return this;
     }
     // alias 'css' to 'style'
+    static css = Elem.style;
     css = this.style;
+
+    static data(elem, obj) {
+      try {
+        for (const [name, value] of Object.entries(obj)) {
+          elem.dataset[name] = value;
+        }
+      } catch (e) {
+        console.warn('Could not set [data-*] attribute.', e);
+      }
+    }
+
+    data(obj) {
+      Elem.data(this.element, obj);
+      return this;
+    }
 
     // Use a string to set the full className
     className(cls){
@@ -322,7 +408,6 @@
       return this;
     }
     classes = this.addClass;
-    // Use an array or space-separated list of className strings to *add*
 
     removeClass(classNames){
       for (const className of this.#classNameArray(classNames)) {
@@ -331,49 +416,67 @@
       return this;
     }
 
-    static on(elem, events){
-      for (let event of [].concat(events)) {
-        for (let [type, fn] of Object.entries(event)) {
-          type = type.toLowerCase();
-          if (`on${type}` in elem) {
-            elem.addEventListener(type, fn);
-          }
-        }
-      }
-      return elem;
-    }
-    // ...
-    on(events = {}){
-      Elem.on(this.element, events);
+    // TODO: write `off` method
+    off(...args) {
+      console.log(`.off()`, args);
       return this;
     }
 
-    propMethodList = [
-      'attr',
-      'prop',
-      'style',
-      'css',
-      'className',
-      'addClass',
-      'classes',
-      'removeClass',
-      'on',
-      ___HTML___
-    ];
+    static on(elem, events){
+      const listeners = {};
+      for (let event of [].concat(events)) {
+        for (let [type, fn, ...other] of event) {
+          type = type.toLowerCase();
+          if (`on${type}` in elem) {
+            elem.addEventListener(type, fn, ...other);
+            // add event listeners to array to remove when
+            // calling returned removal function
+            listeners[type] = [].concat(
+              listeners[type] || [],
+              fn
+            );
+          }
+        }
+      }
+      return {
+        // TODO: write `off` method
+        // off(eventsOrCallback, callback) {
+        //   if (isFunction(eventsOrCallback)) {
+        //     return elem.removeEventListener
+        //   } else if (isArray(eventsOrCallback)) {
+        //     try {
+        //       [].concat(eventTypes).forEach((evtType) => {
+        //         elem.removeEventListener(evtType, listeners[evtType])
+        //       })
+        //     } catch (e) {
+        //       console.error(e);
+        //     }
+        //   }
+        // }
+      };
+    }
+    // ...
+    on(elem, events = []){
+      Elem.on(elem, events);
+      return this;
+    }
 
     // Limit the available 'prop' methods
-    propMethods = {
-      attr: this.attr,
-      prop: this.prop,
-      style: this.style,
-      css: this.style,
-      className: this.className,
-      addClass: this.addClass,
-      classes: this.classes,
-      removeClass: this.removeClass,
-      on: this.on,
-      [___HTML___]: this[___HTML___]
-    };
+    #hasMethod(E, method) {
+      return typeof {
+        attr: E.attr,
+        prop: E.prop,
+        style: E.style,
+        css: E.style,
+        data: E.data,
+        className: E.className,
+        addClass: E.addClass,
+        classes: E.classes,
+        removeClass: E.removeClass,
+        on: E.on,
+        [___HTML___]: E[___HTML___]
+      }[method] === 'function'
+    }
 
     // propMethodsX = this.propMethodList.reduce((obj, name) => {
     //   obj[name] = this[name];
@@ -400,7 +503,7 @@
 
     #appendInstance(child){
       if (isElemInstance(child)) {
-        this.element.appendChild(child.element);
+        this.element.appendChild(child.get());
         return true;
       }
     }
@@ -423,8 +526,9 @@
 
     // using ___HTML___ string constant for prop name
     [___HTML___](html){
-      this.element.empty();
-      this.element.insertAdjacentHTML('beforeend', html);
+      // this.element.empty();
+      // this.element.insertAdjacentHTML('beforeend', html);
+      this.element.innerHTML = html;
       return this;
     }
 
@@ -454,7 +558,6 @@
       for (const child of [].concat(children)) {
         // console.log('child', child);
         try {
-
           this.#appendArray(child) ||
           this.#appendObject(child) ||
           this.#appendInstance(child) ||
@@ -495,14 +598,13 @@
       return this;
     }
 
-
     // Append to specified element
     appendTo(parent, callback){
       this.parent = getElement(parent);
-      this.parent.appendChild(this.element);
+      this.parent.appendChild(this.get());
       return (
         isFunction(callback) ?
-          callback(this.element, this) :
+          callback(this.get(), this) :
           this
       );
     }
@@ -520,6 +622,12 @@
     }
 
   }
+
+  // Main function to expose via `window.d$`
+  function d$(tag, props, children) {
+    return new Elem(tag, props, children);
+  }
+
   // Should this be exposed on the window.d$ object?
   d$.Elem = Elem;
 
@@ -530,7 +638,32 @@
   }
   d$.createElement = createElement;
   d$.element = createElement;
+  d$.elem = createElement;
 
+  d$.elem.div = (props, children) => createElement('div', props, children);
+
+  // Create 'shortcut' static methods for standard elements
+  ['div', 'p', 'a', 'b', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(tag => {
+    d$.elem[tag] = (props, children) => {
+      if (isPlainObject(props)) {
+        return createElement(tag, props, children);
+      }
+      else {
+        return createElement(tag, {}, children);
+      }
+    };
+  });
+
+  function tree(tag, props) {
+    const elem = d$.createElement(tag, props);
+    function createTree (tag, props) {
+      return tree
+    }
+    createTree.get = () => elem.get();
+
+    return createTree;
+  }
+  d$.tree = tree;
 
   // Render element into parent and run optional callback
   function renderElement(parent, element, callback){
@@ -555,6 +688,23 @@
   }
   d$.renderElement = renderElement;
 
+  /**
+   * Create element tree defined in `children` array
+   * and render into `parent`, replacing its contents
+   * @param {string} parent - CSS selector for parent element
+   * @param {Array} children - array of element definitions
+   *
+   * @example
+   * d$.renderTree('#foo', [
+   *   ['div.inner',
+   *     ['p', {}, "This is your life and it's ending one minute at a time."],
+   *   ]
+   * ]);
+   */
+  function renderTree(parent, children = []) {
+
+  }
+  d$.renderTree = renderTree;
 
   function createFragment(children){
     const frag = document.createDocumentFragment();
@@ -617,6 +767,8 @@
   }
   d$.getByTag = getByTag;
 
+  // 'export' some constants
+  d$.constants = constants;
 
   // Helper utilities
   // ----------------
@@ -646,13 +798,20 @@
   function isPlainObject(it){
     return Object.prototype.toString.call(it) === '[object Object]';
   }
+  d$.isPlainObject = isPlainObject;
 
   function isFunction(it){
     return typeof it === 'function';
   }
 
   function getObject(it){
-    return isPlainObject(it) || isFunction(it) ? it : {};
+    if (isPlainObject(it) || isFunction(it)) {
+      return it;
+    }
+    else {
+      console.warn('Not a plain object or function.', it);
+      return {};
+    }
   }
 
   function isString(it){
@@ -660,21 +819,25 @@
   }
 
   function isElement(it){
-    return it instanceof Element;
+    return (
+      it.nodeType && it.nodeType === Node.ELEMENT_NODE
+      || it instanceof Element
+    );
   }
 
   function isFragment(it){
-    return it instanceof DocumentFragment;
+    return (
+      it.nodeType && it.nodeType === Node.DOCUMENT_FRAGMENT_NODE
+      || it instanceof DocumentFragment
+    );
   }
 
   function isElemInstance(it){
-    return it instanceof Elem && isElement(it.element);
+    return it instanceof Elem;
   }
-
 
   // expose globally
   window.d$ = d$;
   window.domage = d$;
-
 
 })(this);

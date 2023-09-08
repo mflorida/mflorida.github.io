@@ -8,27 +8,31 @@
   // DO NOT DEFINE
   let undef;
 
+  const isArray = Array.isArray;
+
   // constants
   const ___HTML___ = '___HTML___';
   const propPrefix = /^_+/;
   const attrPrefix = /^\$+/;
   const evtPrefix = /^on/i;
-  const htmlTest = new RegExp(`\s*${___HTML___}`);
+  const htmlPrefix = new RegExp(`^\s*${___HTML___}`);
 
-  // 'export' some constants
+  // Constants to be 'exported'
   const constants = {
+    ___HTML: ___HTML___,
     ___HTML___,
     propPrefix,
     attrPrefix,
     evtPrefix,
-    htmlTest
+    htmlPrefix
   };
 
-  const propMethodList = [
+  const propMethods = [
     'attr',
     'prop',
     'style',
     'css',
+    'data',
     'className',
     'addClass',
     'classes',
@@ -113,7 +117,7 @@
     init(tag, props, children) {
       this.tag = tag;
       this.props = props;
-      this.children = children;
+      this.children = children || props;
 
       try {
         this.#setupFromObject() ||
@@ -189,16 +193,32 @@
       }
     }
 
+    #resolveChildren() {
+      this.props = this.props || {};
+      this.children = this.children || this.props.children || this.props || null;
+
+      if (isArray(this.props) && this.props === this.children) {
+        this.children = this.props;
+        this.props = {};
+      }
+
+      if (this.props.children != null) {
+        delete this.props.children;
+      }
+
+      return this;
+    }
+
     #setupFromArray() {
       if (isArray(this.tag) && !this.props && !this.children) {
-        [this.tag, this.props = {}, this.children = null] = this.tag;
+        [this.tag, this.props, this.children] = this.tag;
+        this.#resolveChildren();
         return true;
       }
     }
 
     #setupFromArgs() {
-      this.props = this.props || {};
-      this.children = this.children || this.props.children || null;
+      this.#resolveChildren();
       return true;
     }
 
@@ -209,7 +229,7 @@
     }
 
     static isInstance(it){
-      return isElemInstance(it) && isElement(it.element);
+      return isElemInstance(it);
     }
 
     // create the element from the 'tag' string
@@ -510,8 +530,8 @@
 
     #appendHTML(html){
       if (isString(html)) {
-        if (htmlTest.test(html)) {
-          this.element.insertAdjacentHTML('beforeend', html.replace(htmlTest, ''));
+        if (htmlPrefix.test(html)) {
+          this.element.insertAdjacentHTML('beforeend', html.replace(htmlPrefix, ''));
           return true;
         }
       }
@@ -559,12 +579,11 @@
         // console.log('child', child);
         try {
           this.#appendArray(child) ||
-          this.#appendObject(child) ||
-          this.#appendInstance(child) ||
+          this.#appendChildElement(child) ||
           this.#appendHTML(child) ||
           this.#appendText(child) ||
-          // this.#appendString(child) ||
-          this.#appendChildElement(child) ||
+          this.#appendObject(child) ||
+          this.#appendInstance(child) ||
           this.element.append(child);
 
           // if (isArray(child)) {
@@ -792,8 +811,6 @@
   //   }
   //   return undef;
   // }
-
-  const isArray = Array.isArray;
 
   function isPlainObject(it){
     return Object.prototype.toString.call(it) === '[object Object]';

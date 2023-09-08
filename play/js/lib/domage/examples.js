@@ -8,6 +8,7 @@
   const ___ = {};
   const output = d$.getById('output');
   const hipster = d$.content.hipster;
+  const ___HTML___ = d$.constants.___HTML___;
 
   ___.frag = (children) => d$.createFragment(children);
 
@@ -24,19 +25,27 @@
   }
 
   // Initialize a <p> element for later usage
-  const p2 = d$.elem.p({ $title: 'Another Paragraph' });
+  // TODO: figure out why this doesn't work.
+  // const p2 = d$.elem.p({ $title: 'Another Paragraph' });
 
   // p2.addClass('bogus');
   // p2.addClass('totally');
 
   const hipsterPs = hipster.map(para => p(para));
 
-  hipsterPs.push(p2.append('Another paragraph.'));
+  // p2.element.insertAdjacentText('beforeend', 'Another paragraph. ')
+  // p2.element.insertAdjacentHTML('beforeend', '<b>Bold text.</b>');
 
-  p2.append(' ');
-  p2.append(['b', 'Bold text.']);
+  hipsterPs.push(['p', { $title: 'Another Paragraph' }, 'Another paragraph']);
+  hipsterPs.push(['p', [
+    ['b', [
+      'Bold text in yet another paragraph. ',
+      ___HTML___ + `<i>Italic HTML text that's also bold.</i>`
+    ]],
+    // `${HTML} <b>Bold text in another paragraph</b>`
+  ]]);
 
-  console.log('p2', p2);
+  // console.log('p2', p2);
   // Div.id = 'bogus';
 
   d$.renderElement(output, ___.frag(hipsterPs), (elem, parent) => {

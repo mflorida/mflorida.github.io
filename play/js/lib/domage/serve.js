@@ -16,6 +16,7 @@ http.createServer(function(req, res){
   // maps file extention to MIME typere
   const map = {
     '.ico': 'image/x-icon',
+    '.txt': 'text/plain',
     '.html': 'text/html',
     '.js': 'text/javascript',
     '.json': 'application/json',

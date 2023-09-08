@@ -147,7 +147,7 @@
   const attrPrefix = /^\$/;
   const propPrefix = /^_/;
   const evtPrefix = /^on/i;
-  const htmlTest = new RegExp(`\s*${___HTML___}`);
+  const htmlPrefix = new RegExp(`^\s*${___HTML___}`);
 
 
   const propMethods = {
